@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "8799B37F-EEF6-4D8E-860B-81436F4D5CAD"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "D2AA4597-E9B1-42E7-AFB7-6A8912F873FD"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Assignment1_Ali_Abdollahian/my_functions.c"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "128"
+            endingLineNumber = "128"
+            landmarkName = "dequeue(queue, deallocated)"
+            landmarkType = "9">
+            <Locations>
+               <Location
+                  uuid = "D2AA4597-E9B1-42E7-AFB7-6A8912F873FD - 432f1f4a2c8fbf65"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "dequeue"
+                  moduleName = "Assignment1_Ali_Abdollahian"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/ali/Documents/SYSC4001/Assignment1_Ali_Abdollahian/Assignment1_Ali_Abdollahian/my_functions.c"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "127"
+                  endingLineNumber = "127"
+                  offsetFromSymbolStart = "85">
+               </Location>
+               <Location
+                  uuid = "D2AA4597-E9B1-42E7-AFB7-6A8912F873FD - 432f1f4a2c8fbfab"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "dequeue"
+                  moduleName = "Assignment1_Ali_Abdollahian"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/ali/Documents/SYSC4001/Assignment1_Ali_Abdollahian/Assignment1_Ali_Abdollahian/my_functions.c"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "125"
+                  endingLineNumber = "125"
+                  offsetFromSymbolStart = "85">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "B22B63DA-E282-42AE-A65B-D6485AE20091"
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Assignment1_Ali_Abdollahian/my_functions.c"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "271"
+            endingLineNumber = "271"
+            landmarkName = "logTransition(transition_type, old_state, new_state, time, logFileName)"
+            landmarkType = "9">
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>
