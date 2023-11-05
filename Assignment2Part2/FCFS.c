@@ -304,6 +304,7 @@ int main( int argc, char *argv[]) {
     node_t running = NULL;
     char *input_file;
     int verbose;
+    bool no_io = false;
 
     if(argc == 2){
         input_file = argv[1];
@@ -328,7 +329,6 @@ int main( int argc, char *argv[]) {
 
     // Checks if theres I/O events
     temp = new_list;
-    bool no_io = false;
     while (temp != NULL) {
         if (temp->p->io_duration == 0 && temp->p->io_frequency == 0) {
             no_io = true;
