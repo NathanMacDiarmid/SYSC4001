@@ -1,0 +1,16 @@
+---
+triple:          'x86_64-apple-darwin'
+binary-path:     '/Users/nathan/Documents/SYSC 4001/SYSC4001/Assignment2Part2/main'
+relocations:
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _create_proc, symObjAddr: 0x0, symBinAddr: 0x100002EA0, symSize: 0x80 }
+  - { offsetInCU: 0x4D, offset: 0x4D, size: 0x8, addend: 0x0, symName: _STATES, symObjAddr: 0x10C0, symBinAddr: 0x100008000, symSize: 0x0 }
+  - { offsetInCU: 0x150, offset: 0x150, size: 0x8, addend: 0x0, symName: _create_proc, symObjAddr: 0x0, symBinAddr: 0x100002EA0, symSize: 0x80 }
+  - { offsetInCU: 0x1BE, offset: 0x1BE, size: 0x8, addend: 0x0, symName: _create_node, symObjAddr: 0x80, symBinAddr: 0x100002F20, symSize: 0x40 }
+  - { offsetInCU: 0x1F4, offset: 0x1F4, size: 0x8, addend: 0x0, symName: _print_nodes, symObjAddr: 0xC0, symBinAddr: 0x100002F60, symSize: 0x120 }
+  - { offsetInCU: 0x234, offset: 0x234, size: 0x8, addend: 0x0, symName: _push_node, symObjAddr: 0x1E0, symBinAddr: 0x100003080, symSize: 0x70 }
+  - { offsetInCU: 0x278, offset: 0x278, size: 0x8, addend: 0x0, symName: _remove_node, symObjAddr: 0x250, symBinAddr: 0x1000030F0, symSize: 0xD0 }
+  - { offsetInCU: 0x2CA, offset: 0x2CA, size: 0x8, addend: 0x0, symName: _read_proc_from_file, symObjAddr: 0x320, symBinAddr: 0x1000031C0, symSize: 0x1D0 }
+  - { offsetInCU: 0x39F, offset: 0x39F, size: 0x8, addend: 0x0, symName: _get_time_to_next_event, symObjAddr: 0x4F0, symBinAddr: 0x100003390, symSize: 0x1B0 }
+  - { offsetInCU: 0x43B, offset: 0x43B, size: 0x8, addend: 0x0, symName: _clean_up, symObjAddr: 0x6A0, symBinAddr: 0x100003540, symSize: 0x50 }
+  - { offsetInCU: 0x470, offset: 0x470, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0x6F0, symBinAddr: 0x100003590, symSize: 0x6E8 }
+...

@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "climits": "c",
+        "sstream": "c",
+        "streambuf": "c"
+    }
+}
