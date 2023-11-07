@@ -1,10 +1,10 @@
 //
-//  main.c
-//  Assignment1 SYSC4001
+//  RR.c
+//  Assignment2 SYSC4001
 // Ali_Abdollahian #101229396
-// Joshua Makinde  #101193924
+// Nathan MacDiarmid #101098993
 //
-//  Created on 2023-10-07.
+//  Created on 2023-11-07.
 //
 
 #include <stdbool.h>
@@ -21,6 +21,8 @@ typedef struct pcb{ //declaring the PCB struct as a linkedList
     int IOFrequency;
     int IODuration;
     int waitingTime;
+    int turnaround;
+    int wait_time;
     char state;
     char oldState;
     char newState;
@@ -72,6 +74,8 @@ PCB_t *createPCB(int Pid, int ArrivalTime, int CPUTime, int IOFrequency, int IOD
     pcb->waitingTime = 0;
     pcb->IOFrequency = IOFrequency;
     pcb->IODuration = IODuration;
+    pcb->turnaround = 0;
+    pcb->wait_time = 0;
 
     pcb->next = NULL;
     
@@ -325,7 +329,7 @@ void logTransition(int transition_type, queue_t *old_state, queue_t *new_state, 
 
     // Print the headers only if the file is empty (at the beginning)
     if (fileSize == 0) {
-        fprintf(logFile, "Time\tPID\tOldState\tNewState\n");
+        fprintf(logFile, "Time\tPID\tOldState\tNewState\tTurnaround\tWaitTime\n");
     }
 
     // Split the transition label into OldState and NewState
@@ -337,7 +341,7 @@ void logTransition(int transition_type, queue_t *old_state, queue_t *new_state, 
     }
 
     // Print the data for each field with tab as separator
-    fprintf(logFile, "%d\t%d\t%s\t%s\n", time, old_state->front->Pid, oldState, newState);
+    fprintf(logFile, "%d\t%d\t%s\t%s\t%d\t%d\n", time, old_state->front->Pid, oldState, newState, old_state->front->turnaround, old_state->front->wait_time);
 
     fclose(logFile);
 }
@@ -400,6 +404,8 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
             pcb->remainingCPUtime--;
 
             if (pcb->remainingCPUtime == 0) {
+                pcb->turnaround = Clock - pcb->ArrivalTime;
+                pcb->wait_time = pcb->turnaround - pcb->CPUTime;
                 logTransition(5, running_queue, terminated_queue, Clock, outputFileName);
                 dequeue(running_queue, true);
                 num_terminated++;

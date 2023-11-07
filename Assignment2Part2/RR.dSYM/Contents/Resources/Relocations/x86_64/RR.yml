@@ -2,18 +2,18 @@
 triple:          'x86_64-apple-darwin'
 binary-path:     '/Users/nathan/Documents/SYSC 4001/SYSC4001/Assignment2Part2/RR'
 relocations:
-  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _createPCB, symObjAddr: 0x0, symBinAddr: 0x100003000, symSize: 0xD0 }
-  - { offsetInCU: 0x47, offset: 0x47, size: 0x8, addend: 0x0, symName: _createPCB, symObjAddr: 0x0, symBinAddr: 0x100003000, symSize: 0xD0 }
-  - { offsetInCU: 0xB5, offset: 0xB5, size: 0x8, addend: 0x0, symName: _readCSV, symObjAddr: 0xD0, symBinAddr: 0x1000030D0, symSize: 0x2B0 }
-  - { offsetInCU: 0x146, offset: 0x146, size: 0x8, addend: 0x0, symName: _alloc_queue, symObjAddr: 0x380, symBinAddr: 0x100003380, symSize: 0x90 }
-  - { offsetInCU: 0x16E, offset: 0x16E, size: 0x8, addend: 0x0, symName: _enqueue, symObjAddr: 0x410, symBinAddr: 0x100003410, symSize: 0x60 }
-  - { offsetInCU: 0x1A0, offset: 0x1A0, size: 0x8, addend: 0x0, symName: _dequeue, symObjAddr: 0x470, symBinAddr: 0x100003470, symSize: 0xA0 }
-  - { offsetInCU: 0x1E0, offset: 0x1E0, size: 0x8, addend: 0x0, symName: _front, symObjAddr: 0x510, symBinAddr: 0x100003510, symSize: 0x20 }
-  - { offsetInCU: 0x208, offset: 0x208, size: 0x8, addend: 0x0, symName: _createOutPutFileWithHeader, symObjAddr: 0x530, symBinAddr: 0x100003530, symSize: 0x70 }
-  - { offsetInCU: 0x23E, offset: 0x23E, size: 0x8, addend: 0x0, symName: _isEmpty, symObjAddr: 0x5A0, symBinAddr: 0x1000035A0, symSize: 0x20 }
-  - { offsetInCU: 0x268, offset: 0x268, size: 0x8, addend: 0x0, symName: _printPCB, symObjAddr: 0x5C0, symBinAddr: 0x1000035C0, symSize: 0xE0 }
-  - { offsetInCU: 0x28E, offset: 0x28E, size: 0x8, addend: 0x0, symName: _logTransition, symObjAddr: 0x6A0, symBinAddr: 0x1000036A0, symSize: 0x1C0 }
-  - { offsetInCU: 0x344, offset: 0x344, size: 0x8, addend: 0x0, symName: _free_queue, symObjAddr: 0x860, symBinAddr: 0x100003860, symSize: 0x50 }
-  - { offsetInCU: 0x36A, offset: 0x36A, size: 0x8, addend: 0x0, symName: _runSimulation, symObjAddr: 0x8B0, symBinAddr: 0x1000038B0, symSize: 0x330 }
-  - { offsetInCU: 0x4AE, offset: 0x4AE, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0xBE0, symBinAddr: 0x100003BE0, symSize: 0xDB }
+  - { offsetInCU: 0x26, offset: 0x26, size: 0x8, addend: 0x0, symName: _createPCB, symObjAddr: 0x0, symBinAddr: 0x100002F70, symSize: 0xF0 }
+  - { offsetInCU: 0x47, offset: 0x47, size: 0x8, addend: 0x0, symName: _createPCB, symObjAddr: 0x0, symBinAddr: 0x100002F70, symSize: 0xF0 }
+  - { offsetInCU: 0xB5, offset: 0xB5, size: 0x8, addend: 0x0, symName: _readCSV, symObjAddr: 0xF0, symBinAddr: 0x100003060, symSize: 0x2B0 }
+  - { offsetInCU: 0x146, offset: 0x146, size: 0x8, addend: 0x0, symName: _alloc_queue, symObjAddr: 0x3A0, symBinAddr: 0x100003310, symSize: 0x90 }
+  - { offsetInCU: 0x16E, offset: 0x16E, size: 0x8, addend: 0x0, symName: _enqueue, symObjAddr: 0x430, symBinAddr: 0x1000033A0, symSize: 0x60 }
+  - { offsetInCU: 0x1A0, offset: 0x1A0, size: 0x8, addend: 0x0, symName: _dequeue, symObjAddr: 0x490, symBinAddr: 0x100003400, symSize: 0xA0 }
+  - { offsetInCU: 0x1E0, offset: 0x1E0, size: 0x8, addend: 0x0, symName: _front, symObjAddr: 0x530, symBinAddr: 0x1000034A0, symSize: 0x20 }
+  - { offsetInCU: 0x208, offset: 0x208, size: 0x8, addend: 0x0, symName: _createOutPutFileWithHeader, symObjAddr: 0x550, symBinAddr: 0x1000034C0, symSize: 0x70 }
+  - { offsetInCU: 0x23E, offset: 0x23E, size: 0x8, addend: 0x0, symName: _isEmpty, symObjAddr: 0x5C0, symBinAddr: 0x100003530, symSize: 0x20 }
+  - { offsetInCU: 0x268, offset: 0x268, size: 0x8, addend: 0x0, symName: _printPCB, symObjAddr: 0x5E0, symBinAddr: 0x100003550, symSize: 0xE0 }
+  - { offsetInCU: 0x28E, offset: 0x28E, size: 0x8, addend: 0x0, symName: _logTransition, symObjAddr: 0x6C0, symBinAddr: 0x100003630, symSize: 0x1E0 }
+  - { offsetInCU: 0x344, offset: 0x344, size: 0x8, addend: 0x0, symName: _free_queue, symObjAddr: 0x8A0, symBinAddr: 0x100003810, symSize: 0x50 }
+  - { offsetInCU: 0x36A, offset: 0x36A, size: 0x8, addend: 0x0, symName: _runSimulation, symObjAddr: 0x8F0, symBinAddr: 0x100003860, symSize: 0x360 }
+  - { offsetInCU: 0x4AE, offset: 0x4AE, size: 0x8, addend: 0x0, symName: _main, symObjAddr: 0xC50, symBinAddr: 0x100003BC0, symSize: 0xDB }
 ...
