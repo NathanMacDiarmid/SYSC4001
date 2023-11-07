@@ -40,7 +40,7 @@ typedef struct { //Queue struct holds a pointer to the PCBs
     int size;
 }queue_t;
 
-#define QUANTUM 4
+#define QUANTUM 1
 
 /**
  * Creates a new Process Control Block (PCB) with the specified parameters.

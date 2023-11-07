@@ -43,6 +43,8 @@ struct process {
     int io_frequency;
     int io_duration;
     int io_time_remaining;
+    int turnaround;
+    int wait_time;
     enum STATE s;
 };
 
@@ -84,6 +86,8 @@ proc_t create_proc(int pid, int arrival_time, int total_cpu_time, int io_frequen
     temp->io_frequency = io_frequency;
     temp->io_duration = io_duration;
     temp->io_time_remaining = io_frequency;
+    temp->turnaround = 0;
+    temp->wait_time = 0;
     temp->s = STATE_NEW;
     return temp;
 }
@@ -403,9 +407,11 @@ int main( int argc, char *argv[]) {
             
             if(running->p->cpu_time_remaining <= 0){
                 // The process is finished running, terminate it
+                running->p->turnaround = cpu_clock - running->p->arrival_time;
+                running->p->wait_time = running->p->turnaround - running->p->total_cpu_time;
                 running->p->s = STATE_TERMINATED;
                 terminated = push_node(terminated,running);
-                printf("%d,%d,%s,%s\n", cpu_clock, running->p->pid, STATES[STATE_RUNNING], STATES[STATE_TERMINATED]);
+                printf("%d,%d,%s,%s,%d,%d\n", cpu_clock, running->p->pid, STATES[STATE_RUNNING], STATES[STATE_TERMINATED], running->p->turnaround, running->p->wait_time);
                 
                 if(ready_list!=NULL){
                     running = ready_list;
