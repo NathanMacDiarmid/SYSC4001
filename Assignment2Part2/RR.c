@@ -1,498 +1,479 @@
 //
-//  RR.c
+//  FCFS.c
 //  Assignment2 SYSC4001
 // Ali_Abdollahian #101229396
 // Nathan MacDiarmid #101098993
 //
 //  Created on 2023-11-07.
 //
+// BASED OFF SOLUTION GIVEN BY PROF
+//
 
-#include <stdbool.h>
+// Header file for input output functions
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <limits.h>
 #include <assert.h>
 
-typedef struct pcb{ //declaring the PCB struct as a linkedList
-    int Pid;
-    int ArrivalTime;
-    int CPUTime;
-    int remainingCPUtime;
-    int runningTime;
-    int IOFrequency;
-    int IODuration;
-    int waitingTime;
+// Macro to return the min of a and b
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define QUANTUM 4
+
+// An enumerator (enum for short) to represent the state
+enum STATE {
+    STATE_NEW,
+    STATE_READY,
+    STATE_RUNNING,
+    STATE_WAITING,
+    STATE_TERMINATED
+};
+static const char *STATES[] = { "NEW", "READY", "RUNNING", "WAITING", "TERMINATED"};
+
+// A structure containing all the relovant meta data for a process, this is the PCB like struct
+// The io_time_remaining is used in two ways: 
+// it counts how long until the next io call and how long until a current io call is complete
+struct process {
+    int pid;
+    int arrival_time;
+    int total_cpu_time;
+    int cpu_time_remaining;
+    int io_frequency;
+    int io_duration;
+    int io_time_remaining;
     int turnaround;
     int wait_time;
-    char state;
-    char oldState;
-    char newState;
-    struct pcb *next;
-} PCB_t;
+    enum STATE s;
+};
 
-typedef struct { //Declaring output information as a struct
-    int Time;
-    int Pid;
-    char oldState;
-    char newState;
-}OutPut_logs;
+// This structure is a linked list of processes
+// This linked list was adapted from the code presented in the following tutorial:
+// https://www.hackerearth.com/practice/data-structures/linked-list/singly-linked-list/tutorial/#:~:text=In%20C%20language%2C%20a%20linked,address%20of%20the%20next%20node.
+struct node {
+    struct process *p;
+    struct node *next;
+};
 
-typedef struct { //Queue struct holds a pointer to the PCBs
-    PCB_t *front;
-    PCB_t *rear;
-    int size;
-}queue_t;
+// typedefs are a short hand to make the code more legible
+// Here we use type def to create types for pointers to the preciously defined structures
+typedef struct process *proc_t;
+typedef struct node *node_t;
 
-#define QUANTUM 1
+/* FUNCTION DESCRIPTION: create_proc
+* This function creates a new process structure.
+* The parameters are self descriptive: 
+*    -pid
+*    -arrival_time
+*    -total_cpu_time
+*    -io_frequency
+*    -io_duration
+* The return value is a pointer to new process structure
+*/
+proc_t create_proc(int pid, int arrival_time, int total_cpu_time, int io_frequency, int io_duration){
+    // Initialize memory
+    proc_t temp; 
+    temp = (proc_t) malloc(sizeof(struct process)); 
 
-/**
- * Creates a new Process Control Block (PCB) with the specified parameters.
- *
- * This function allocates memory for a new PCB structure, initializes its fields with
- * the provided values, and sets the 'next' pointer to NULL, indicating that the PCB
- * is not part of a linked list.
- *
- * @param Pid The Process ID (Pid) of the PCB.
- * @param ArrivalTime The arrival time of the process in the system.
- * @param CPUTime The CPU time required for the process.
- * @param IOFrequency The frequency of Input/Output (I/O) operations.
- * @param IODuration The duration of each Input/Output (I/O) operation.
- *
- * @return A pointer to the newly created PCB structure. Returns NULL in case of memory
- *         allocation failure.
- */
-PCB_t *createPCB(int Pid, int ArrivalTime, int CPUTime, int IOFrequency, int IODuration) {
-    
-    PCB_t *pcb = malloc(sizeof(PCB_t));
-    assert(pcb != NULL);
-    
-    
-    pcb->Pid = Pid;
-    pcb->ArrivalTime = ArrivalTime;
-    pcb->runningTime = 0;
-    pcb->remainingCPUtime = CPUTime;
-    pcb->CPUTime= CPUTime;
-    pcb->waitingTime = 0;
-    pcb->IOFrequency = IOFrequency;
-    pcb->IODuration = IODuration;
-    pcb->turnaround = 0;
-    pcb->wait_time = 0;
-
-    pcb->next = NULL;
-    
-    return pcb;
+    // Initialize contents
+    // The cpu time remaining starts at total CPU time
+    // the state starts as new
+    temp->pid=pid;
+    temp->arrival_time = arrival_time;
+    temp->total_cpu_time = total_cpu_time;
+    temp->cpu_time_remaining = total_cpu_time;
+    temp->io_frequency = io_frequency;
+    temp->io_duration = io_duration;
+    temp->io_time_remaining = io_frequency;
+    temp->turnaround = 0;
+    temp->wait_time = 0;
+    temp->s = STATE_NEW;
+    return temp;
 }
 
-/**
- * Reads data from a CSV file, creates PCBs, and stores them in an array.
- *
- * This function opens the specified CSV file, reads its contents, creates PCBs for each row,
- * and stores them in the 'pcbArray' array. The expected CSV file format should have five columns,
- * separated by commas, corresponding to the fields of a PCB structure: Pid, ArrivalTime,
- * CPUTime, IOFrequency, and IODuration.
- *
- * @param filename The name of the CSV file to be read.
- * @param pcbArray An array of PCB structures where each created PCB will be stored.
- * @param maxRecords The maximum number of records to read from the CSV file and create PCBs.
- *
- * @return The number of records successfully read from the CSV file and created as PCBs.
- *         Returns -1 in case of any error, such as a file open failure or incorrect file format.
- */
-int readCSV(const char *filename, PCB_t *pcbArray, int maxRecords) {
-    FILE *file;
-    file = fopen(filename, "r");
-    
-    if (file == NULL) {
-        printf("Error opening file.\n");
-        return -1;
-    }
-    
-    int records = 0;
-    
-    char header[100];
-    fgets(header, sizeof(header), file); // Read and discard the header line
+/* FUNCTION DESCRIPTION: create_node
+* This function creates a new  list node.
+* The parameters are: 
+*    -p, a pointer to the process structure to be stored in this node
+* The return value is a pointer to the new node
+*/
+node_t create_node(proc_t p){
+    // Initialize memory
+    node_t temp; 
+    temp = (node_t) malloc(sizeof(struct node)); 
 
-    while (records < maxRecords && fscanf(file, "%d,%d,%d,%d,%d\n",
-            &pcbArray[records].Pid,
-            &pcbArray[records].ArrivalTime,
-            &pcbArray[records].CPUTime,
-            &pcbArray[records].IOFrequency,
-            &pcbArray[records].IODuration) == 5) {
-        // Create PCB using the extracted data
-        PCB_t *pcb = createPCB(pcbArray[records].Pid, pcbArray[records].ArrivalTime,
-                               pcbArray[records].CPUTime, pcbArray[records].IOFrequency,
-                               pcbArray[records].IODuration);
-        
-        if (pcb == NULL) {
-            printf("Error creating PCB for record %d\n", records);
-            fclose(file);
-            return -1;
-        }
-        
-        // Store the created PCB in the array
-        pcbArray[records] = *pcb;
-        records++;
-    }
+    // Initialize contents
+    temp->next = NULL;
+    temp->p = p;
 
-    fclose(file);
-    printf("\n%d records read and created as PCBs.\n\n", records);
-    return records;
+    return temp;
 }
 
-/**
- * Allocates memory and initializes a new queue. The allocated queue is initially empty.
- *
- * @return A pointer to the newly allocated queue. Returns NULL in case of memory allocation failure.
- */
-queue_t *alloc_queue(void){
-    queue_t *queue = malloc(sizeof(queue_t));
-    assert(queue != NULL);
-    queue->front = NULL;
-    queue->rear = NULL;
-    queue->size = 0;
-    return queue;
-}
+/* FUNCTION DESCRIPTION: print_nodes
+* Prints all the nodes in head, along with their time remianing and current states
+*/
+void print_nodes(node_t head) {
+    node_t current = head;
+    proc_t p; 
 
-/**
- * Enqueues a PCB at the rear of the queue pointed to by parameter 'queue'.
- * If the queue is empty, it sets both the front and rear pointers to the new PCB.
- *
- * @param queue A pointer to the queue to which the PCB will be enqueued.
- * @param pcb A pointer to the PCB to be enqueued.
- */
-void enqueue(queue_t *queue, PCB_t *pcb) {
-
-    if (queue->size == 0) {
-        // If the queue is empty, add the new PCB at the front
-        queue->front = pcb;
-    } else {
-        // If the queue has other elements, add the new PCB at the end
-        queue->rear->next = pcb;
-    }
-
-    // Set the rear pointer to point to the new end of the queue
-    queue->rear = pcb;
-    queue->size += 1;
-}
-
-
-/**
- * Dequeues and removes the PCB at the front of the queue pointed to by parameter 'queue'.
- * If the queue is not empty, it removes the front PCB, frees its memory, and updates the queue's front and size.
- *
- * @param queue A pointer to the queue from which to dequeue.
- */
-void dequeue(queue_t *queue, _Bool deallocated) {
-    if (queue->size == 0) {
-        // Queue is empty; nothing to dequeue.
+    if(head == NULL){
+        printf("EMPTY\n");
         return;
     }
 
-    PCB_t *pcb_to_remove = queue->front;
+    while (current != NULL) {
+        p = current->p;
+        printf("Process ID: %d\n", p->pid);
+        printf("CPU Arrival Time: %dms\n", p->arrival_time);
+        printf("Time Remaining: %dms of %dms\n", p->cpu_time_remaining, p->total_cpu_time);
+        printf("IO Duration: %dms\n", p->io_duration);
+        printf("IO Frequency: %dms\n", p->io_frequency);
+        printf("Current state: %s\n", STATES[p->s]);
+        printf("Time until next IO event: %dms\n", p->io_time_remaining);
+        printf("\n");
+        current = current->next;
+    }
+}
 
-    if (deallocated) {
-        // Deallocate memory if specified
-        if (pcb_to_remove != NULL) {
-            queue->front = queue->front->next;
-            pcb_to_remove = NULL;
-        }
+/* FUNCTION DESCRIPTION: push_node
+* This function adds a node to the back of the list (as though its a queue).
+* The parameters are: 
+*    -head points to the head in the list
+*    -temp is the node to be added
+* The return value is a pointer to the list
+*/
+node_t push_node(node_t head, node_t temp){
+    // prev will be used to itterate through the list
+    node_t prev;
+
+    // If the list is empty then we return a list with only the new node
+    if(head == NULL){
+        head = temp;     
     } else {
-        // Update front pointer without deallocating memory
-        queue->front = queue->front->next;
-        
-    }
+        // Itterate through the list to add the new node at the end
+        // The last node always points to NULL, so we get the next nodes until this happens
+        prev = head;
 
-    if (queue->front == NULL) {
-        // Queue is now empty; update rear pointer.
-        queue->rear = NULL;
-    }
-
-    queue->size--;
-}
-
-/**
- * Retrieves a pointer to the PCB (Process Control Block) at the front of the queue.
- *
- * This function returns a pointer to the PCB at the front of the specified queue
- * without removing the PCB from the queue.
- *
- * @param queue A pointer to the queue from which to retrieve the front PCB.
- * @return A pointer to the PCB at the front of the queue. Returns NULL if the queue
- *         is empty.
- */
-PCB_t *front(queue_t *queue){
-    return queue->front;
-}
-
-/**
- * Creates a new text file with the given filename and writes a predefined header
- * to it.
- *
- * This function creates a new text file with the specified filename and writes a
- * predefined header line to the file. If the file already exists, its contents
- * will be overwritten.
- *
- * @param filename The name of the file to be created.
- * @return 0 on success, 1 on failure to open the file.
- */
-int createOutPutFileWithHeader(const char *filename) {
-    //const char *header = "Time,PID,Old_State,New_State"; // Predefined header
-    
-    FILE *file = fopen(filename, "w");
-
-    if (file == NULL) {
-        perror("Unable to open the file");
-        return 1; // Return an error code
-    }
-
-//    fprintf(file, "%s\n", header);
-
-    fclose(file);
-
-    printf("Output file created successfully.\n"); // Debugging output
-
-    return 0; // Return 0 to indicate success
-}
-
-/**
- * Checks if a given queue is empty.
- *
- * This function determines whether the specified queue is empty by examining its 'size' field.
- * If the 'size' is zero, the queue is considered empty; otherwise, it is not.
- *
- * @param queue A pointer to the queue to be checked for emptiness.
- * @return 'true' if the queue is empty, 'false' otherwise.
- */
-_Bool isEmpty(const queue_t *queue) {
-    return queue->size == 0;
-}
-
-/**
- * Prints the details of a Process Control Block (PCB).
- *
- * This function takes a pointer to a PCB structure and prints its various fields, including
- * PID, Arrival Time, CPU Time, Remaining CPU Time, IO Frequency, IO Duration, State, Old State,
- * and New State. It is used for debugging and displaying information about a PCB.
- *
- * @param pcb A pointer to the PCB structure to be printed.
- */
-void printPCB(const PCB_t *pcb) {
-    printf("PID: %d\n", pcb->Pid);
-    printf("Arrival Time: %d\n", pcb->ArrivalTime);
-    printf("CPU Time: %d\n", pcb->CPUTime);
-    printf("Remaining CPU Time: %d\n", pcb->remainingCPUtime);
-    printf("IO Frequency: %d\n", pcb->IOFrequency);
-    printf("IO Duration: %d\n", pcb->IODuration);
-    printf("State: %c\n", pcb->state);
-    printf("Old State: %c\n", pcb->oldState);
-    printf("New State: %c\n", pcb->newState);
-}
-
-/**
- * Logs a transition event to a log file.
- *
- * This function records a transition event to a log file specified by 'logFileName'. The transition
- * event includes information such as the transition type, old state, new state, time, and PID.
- * It appends the event to the log file, creating a header if the file is empty.
- *
- * @param transition_type An integer representing the type of transition.
- * @param old_state A pointer to the queue representing the old state.
- * @param new_state A pointer to the queue representing the new state.
- * @param time The timestamp indicating when the transition occurred.
- * @param logFileName The name of the log file where the transition event will be recorded.
- */
-void logTransition(int transition_type, queue_t *old_state, queue_t *new_state, int time, const char* logFileName) {
-    // Open the log file for appending
-    FILE* logFile = fopen(logFileName, "a");
-    if (logFile == NULL) {
-        perror("Failed to open log file");
-        exit(EXIT_FAILURE);
-    }
-
-    // Check if the file is empty
-    fseek(logFile, 0, SEEK_END);
-    long fileSize = ftell(logFile);
-    
-    // Determine the transition label based on the transition type
-    const char* transition_labels[] = {
-        "NEW READY",
-        "READY RUNNING",
-        "RUNNING WAITING",
-        "WAITING READY",
-        "RUNNING READY",
-        "RUNNING TERMINATED"
-    };
-
-    if (transition_type < 0 || transition_type >= 6) {
-        printf("Incorrect transition identifier\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Print the headers only if the file is empty (at the beginning)
-    if (fileSize == 0) {
-        fprintf(logFile, "Time\tPID\tOldState\tNewState\tTurnaround\tWaitTime\n");
-    }
-
-    // Split the transition label into OldState and NewState
-    char oldState[50];
-    char newState[50];
-    if (sscanf(transition_labels[transition_type], "%s %s", oldState, newState) != 2) {
-        printf("Failed to parse transition label\n");
-        exit(EXIT_FAILURE);
-    }
-
-    // Print the data for each field with tab as separator
-    fprintf(logFile, "%d\t%d\t%s\t%s\t%d\t%d\n", time, old_state->front->Pid, oldState, newState, old_state->front->turnaround, old_state->front->wait_time);
-
-    fclose(logFile);
-}
-
-/**
- * Frees the memory used by a queue and its contained PCBs.
- *
- * This function deallocates the memory used by the specified queue and its contained PCBs.
- * It iteratively dequeues and frees each PCB in the queue, setting the 'deallocate' flag to
- * true to deallocate PCB memory. Finally, it frees the queue itself.
- *
- * @param queue A pointer to the queue to be freed.
- */
-void free_queue(queue_t *queue) {
-    while (!isEmpty(queue)) {
-        dequeue(queue, true); // true to deallocate PCB memory
-    }
-
-    free(queue); // Free the queue itself
-}
-
-/**
- * Runs a simulation of process scheduling using the provided PCBs and logs the transitions.
- *
- * This function simulates process scheduling using the provided PCBs and logs the transitions
- * between different states of the processes. It utilizes several queues (new, ready, running,
- * waiting, and terminated) to manage process states and transitions. The simulation continues
- * until all processes are terminated.
- *
- * @param pcbArray An array of PCB structures representing the processes to be scheduled.
- * @param num_processes The number of processes in the 'pcbArray'.
- * @param outputFileName The name of the output log file where transition information is logged.
- */
-void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileName) {
-    // Create queues for different process states...
-    queue_t* ready_queue = alloc_queue();
-    queue_t* running_queue = alloc_queue();
-    queue_t* waiting_queue = alloc_queue();
-    queue_t* terminated_queue = alloc_queue();
-
-    // Clear the log file or create it if it doesn't exist
-    createOutPutFileWithHeader(outputFileName);
-
-    // Initialize simulation variables
-    int Clock = 0;
-    int num_terminated = 0;
-    int time_quantum = QUANTUM; // Round Robin time quantum
-
-    while (num_terminated < num_processes) {
-        // Add processes to the ready queue at their arrival time
-        for (int j = 0; j < num_processes; j++) {
-            if (pcbArray[j].ArrivalTime == Clock) {
-                enqueue(ready_queue, &pcbArray[j]);
-            }
+        while(prev->next != NULL){
+            prev = prev->next;
         }
 
-        // Transition from running to terminated or waiting or ready (if time quantum expires)
-        if (!isEmpty(running_queue)) {
-            PCB_t* pcb = front(running_queue);
-            pcb->remainingCPUtime--;
-
-            if (pcb->remainingCPUtime == 0) {
-                pcb->turnaround = Clock - pcb->ArrivalTime;
-                pcb->wait_time = pcb->turnaround - pcb->CPUTime;
-                logTransition(5, running_queue, terminated_queue, Clock, outputFileName);
-                dequeue(running_queue, true);
-                num_terminated++;
-            } else if (time_quantum == 0) {
-                // Time quantum expired, move to the end of the ready queue (RR behavior)
-                logTransition(4, running_queue, ready_queue, Clock, outputFileName);
-                dequeue(running_queue, false);
-                enqueue(ready_queue, pcb);
-                time_quantum = QUANTUM; // Reset the time quantum
-            }
-        }
-
-        // If running queue is empty, fetch the next process in ready queue (FCFS behavior)
-        if (isEmpty(running_queue) && !isEmpty(ready_queue)) {
-            logTransition(1, ready_queue, running_queue, Clock, outputFileName);
-            PCB_t* pcb = front(ready_queue);
-            dequeue(ready_queue, false);
-            enqueue(running_queue, pcb);
-            time_quantum = QUANTUM; // Reset the time quantum for new process
-        }
-
-        // Transition from running to waiting
-        if (!isEmpty(running_queue)) {
-            PCB_t* pcb = front(running_queue);
-            pcb->runningTime++;
-
-            if (pcb->runningTime == pcb->IOFrequency) {
-                logTransition(2, running_queue, waiting_queue, Clock, outputFileName);
-                dequeue(running_queue, false);
-                pcb->runningTime = 0; // Reset running time
-                enqueue(waiting_queue, pcb);
-            }
-        }
-
-        // Transition from waiting to ready
-        if (!isEmpty(waiting_queue)) {
-            PCB_t* pcb = front(waiting_queue);
-            pcb->waitingTime++;
-
-            if (pcb->waitingTime == pcb->IODuration) {
-                logTransition(3, waiting_queue, ready_queue, Clock, outputFileName);
-                dequeue(waiting_queue, false);
-                enqueue(ready_queue, pcb);
-            }
-        }
-
-        // Decrement time quantum
-        if (time_quantum > 0) {
-            time_quantum--; // Decrement the time quantum
-        } else {
-            time_quantum = QUANTUM; // Reset the time quantum when it reaches 0
-        }
-
-        // Increment the Clock
-        Clock++;
+        // Update the old final node to point to the new node
+        prev->next = temp;
     }
-
-    // Free allocated memory
-    free_queue(ready_queue);
-    free_queue(running_queue);
-    free_queue(waiting_queue);
-    free_queue(terminated_queue);
+    temp->next = NULL;
+    return head;
 }
 
-
-
-int main(void) {
-    // Define the maximum number of PCBs
-    #define MAX_PCB_COUNT 100
-
-//    if (argc != 2) {
-//        printf("Usage: %s <test_file.csv>\n", argv[0]);
-//        return 1;
-//    }
-    const char *testFileName = "test_case_1.csv"; // Get the test file name from the command line
-
-    PCB_t pcbArray[MAX_PCB_COUNT]; // Allocate an array for PCBs
-    int num_processes;
-
-    // Read data from the CSV file and create PCBs
-    num_processes = readCSV(testFileName, pcbArray, MAX_PCB_COUNT);
-
-    if (num_processes < 0) {
-        printf("Error reading CSV file.\n");
+/* FUNCTION DESCRIPTION: remove_node
+* This function removes a node from within the linked list. 
+* IT DOES NOT FREE THE MEMORY ALLOCATED FOR THE NODE.
+* The parameters are: 
+*    -head points to the pointer that is the front of the list
+*    -to_be_removed points to the node that is to be removed
+* The return value is an int indicating success or failure
+*/
+int remove_node(node_t *head, node_t to_be_removed){
+    node_t temp, prev;
+    if(to_be_removed == *head){
+        *head = (*head)->next;
+        to_be_removed->next = NULL;
         return 1;
+    } else { 
+        temp = *head;
+        // Itterate through the list until we've checked every node
+        while(temp->next != NULL){
+            prev = temp;
+            temp = temp->next;
+            if(temp == to_be_removed){
+                prev->next = temp->next;
+                // NOTE:Calling function must free to_be_removed when finished with it.
+                // Since the addresss of the node to be removed was passed to this function
+                // the calling function must already have a reference to it
+                to_be_removed->next = NULL;
+                return 1;
+            }
+        }
     }
-    // Run the simulation using the created PCBs
-    runSimulation(pcbArray, num_processes, "output.csv");
-    return 0;
+    return -1;
+}
+
+/* FUNCTION DESCRIPTION: read_proc_from_file
+* Parse the CSV input file and load its contents into a list
+* The parameters are: 
+* The return value is a list of thes new prcesses
+*/
+node_t read_proc_from_file(char *input_file){
+    int MAXCHAR = 128;
+    char row[MAXCHAR];
+    node_t new_list=NULL, node;
+    proc_t proc;
+    int pid, arrival_time, total_cpu_time, io_frequency, io_duration;
+
+    FILE* f = fopen(input_file, "r");
+    if(f == NULL){
+        // file not opened, fail gracefully
+        printf("NULL FILE\n\n\n\n");
+      //  assert(false);
+    } 
+    // Get the first row, which has the header values
+    //Pid;Arrival Time;Total CPU Time;I/O Frequency;I/O Duration
+    fgets(row, MAXCHAR, f);
+    // Read the remainder of the rows until you get to the end of the file
+    do {
+        // get the next data row
+        fgets(row, MAXCHAR, f);
+        // make sure it has at least enough char to be valid
+        if(strlen(row)<10) continue;
+        // atoi turns a string into an integer
+        // strtok(row,";") tokenizes the row around the ';' charaters
+        // strtok(NULL, ";") gets the next token in the row
+        // We are assuming that the file is setup as a CSV in the correct format
+        pid = atoi(strtok(row, ","));
+        arrival_time = atoi(strtok(NULL, ","));
+        total_cpu_time = atoi(strtok(NULL, ","));
+        io_frequency = atoi(strtok(NULL, ","));
+        io_duration = atoi(strtok(NULL, ","));
+
+        // We create a process struct and pass it too create node, then add this node to the new_list
+        proc = create_proc(pid, arrival_time, total_cpu_time, io_frequency, io_duration);
+        node = create_node(proc);
+        new_list = push_node(new_list, node);
+        
+    } while (feof(f) != true);
+
+    return new_list;
+}
+
+/* FUNCTION DESCRIPTION: get_time_to_next_event
+* This function returns the amount of simulation time until the next event occurs
+* The parameters are: 
+*    - cpu_clock: Time since the start of the simulation
+*    - running: The node containing the currently running process
+*    - new queue: The list of precess that have yet to arrive in the cpu
+*    - waiting_list: The list of processes that are waiting for io
+* The return value is the time until the next event
+*/
+int get_time_to_next_event(int cpu_clock, node_t running, node_t new_list, node_t waiting_list, bool no_io){
+    node_t temp;
+    int next_exit=INT_MAX, next_block=INT_MAX, next_arrival=INT_MAX, next_io=INT_MAX;
+    int next_time_slice = 1;
+
+    if(running != NULL){
+        next_exit = running->p->cpu_time_remaining;
+        next_block = running->p->io_time_remaining;
+    }
+
+    // Search the new queue for the time until its next event 
+    temp = new_list;
+    while(temp != NULL){
+        next_arrival = min(temp->p->arrival_time - cpu_clock, next_arrival);
+        temp = temp->next;
+    }
+    
+    // Search the waiting queue for the time until its next event
+    temp = waiting_list;
+    while(temp != NULL){
+        next_io = min(temp->p->io_time_remaining, next_io);
+        temp = temp->next;
+    }
+    
+    if (no_io) {
+        return min(next_time_slice, next_exit);
+    } else {
+        return min(min(min(next_exit, next_time_slice), next_block), min(next_arrival, next_io));
+    }
+}
+
+
+/* FUNCTION DESCRIPTION: clean_up
+* This function frees all the dynamically allocated heap memory
+* The parameters are: 
+*    - list: the list of nodes to free
+*/
+void clean_up(node_t list){
+    node_t temp;
+    while(list != NULL){
+        temp = list;
+        list = list->next;
+        free(temp->p);
+        free(temp);
+    }
+}
+
+int main( int argc, char *argv[]) {
+    int next_step = 0, cpu_clock = 0;
+    bool simulation_completed = false;
+    node_t ready_list = NULL, new_list = NULL, waiting_list = NULL, terminated = NULL, temp, node;
+    node_t running = NULL;
+    char *input_file;
+    int verbose;
+    bool no_io = false;
+
+    if(argc == 2){
+        input_file = argv[1];
+        verbose = 0;
+    } else if( argc == 3 ) {
+        input_file = argv[1];
+        verbose = atoi(argv[2]);
+    } else {
+        printf("Two or three args expected.\n");
+        return -1;
+    }
+
+    // Process meta data should be read from a text file
+    if(verbose) printf("------------------------------- Loading all processes -------------------------------\n");
+    new_list = read_proc_from_file(input_file);
+    if(verbose) print_nodes(new_list);
+    if(verbose) printf("-------------------------------------------------------------------------------------\n");
+    if(verbose) printf("Starting simulation...\n");
+
+    // print the headers
+    printf("Time of transition,PID,Old State,New State\n");
+
+    // Checks if theres I/O events
+    temp = new_list;
+    while (temp != NULL) {
+        if (temp->p->io_duration == 0 && temp->p->io_frequency == 0) {
+            no_io = true;
+        } else {
+            no_io = false;
+        }
+        temp = temp->next;
+    }
+    // Simulation loop
+    do {
+        // Update timers to reflect next simulation step
+        // Advance the cpu clock time
+        cpu_clock += next_step;
+        // Advance all the io timers for processes in waiting state
+        node = waiting_list;
+
+        while(node != NULL){
+            if (node ==NULL) break;
+            node->p->io_time_remaining -= next_step;
+            if(node->p->io_time_remaining <= 0){
+                // This process is ready, it should change states from waiting to ready
+                // Update the time of next io event to the frequency of its occurance
+                // add it to the ready queue and remove it from waiting list
+                node->p->s = STATE_READY;
+                node->p->io_time_remaining = node->p->io_frequency;
+
+                temp = node->next;
+                remove_node(&waiting_list, node);
+                ready_list = push_node(ready_list, node);
+                printf("%d,%d,%s,%s\n", cpu_clock, node->p->pid, STATES[STATE_WAITING], STATES[STATE_READY]);
+
+                node = temp;
+            } else {
+                node = node->next;
+            }
+        }
+
+        // Check if any of the items in new queue should be moved to the ready queue
+        node = new_list;
+        while(node!= NULL) {
+            // If the program has arrived change its state and add it to ready queue
+            if(node->p->arrival_time <= cpu_clock){
+                node->p->s = STATE_READY;
+
+                temp = node->next;
+                remove_node(&new_list, node);
+                ready_list = push_node(ready_list, node);
+                printf("%d,%d,%s,%s\n", cpu_clock, node->p->pid, STATES[STATE_NEW], STATES[STATE_READY]);
+                
+                node = temp;
+            } else {
+                node = node->next;
+            }
+        } 
+        // Make sure the CPU is running a process
+        if(running == NULL){
+            // If it isn't, check if there is one ready
+            if(ready_list!=NULL){
+                running = ready_list;
+                running->p->s = STATE_RUNNING;
+                remove_node(&ready_list, running);
+                printf("%d,%d,%s,%s\n", cpu_clock, running->p->pid, STATES[STATE_READY], STATES[STATE_RUNNING]);
+            } else{
+                running = NULL; 
+                if(verbose) printf("%d: CPU is idle\n", cpu_clock);
+            } 
+        } else {
+            // if it is then remove the time step from remaining time until process completetion and next io event
+            running->p->cpu_time_remaining -= next_step;
+            running->p->io_time_remaining -= next_step;
+            // if(verbose) printf("%d: PID %d has %dms until completion and %dms until io block\n", cpu_clock,  running->p->pid, running->p->cpu_time_remaining,running->p->io_time_remaining);
+            
+            if(running->p->cpu_time_remaining <= 0){
+                // The process is finished running, terminate it
+                running->p->turnaround = cpu_clock - running->p->arrival_time;
+                running->p->wait_time = running->p->turnaround - running->p->total_cpu_time;
+                running->p->s = STATE_TERMINATED;
+                terminated = push_node(terminated,running);
+                printf("%d,%d,%s,%s,%d,%d\n", cpu_clock, running->p->pid, STATES[STATE_RUNNING], STATES[STATE_TERMINATED], running->p->turnaround, running->p->wait_time);
+                
+                if(ready_list!=NULL){
+                    running = ready_list;
+                    running->p->s = STATE_RUNNING;
+                    remove_node(&ready_list, running);
+                    printf("%d,%d,%s,%s\n", cpu_clock, running->p->pid, STATES[STATE_READY], STATES[STATE_RUNNING]);
+                          
+                } else{
+                    running = NULL; 
+                    if(verbose) printf("%d: CPU is idle\n", cpu_clock);
+                } 
+
+            } else if(running->p->io_time_remaining <= 0 || next_step == QUANTUM){
+                // The process is blocked by io, update the timer and set state to waiting
+                running->p->io_time_remaining = running->p->io_duration;
+                running->p->s = STATE_WAITING;
+                waiting_list = push_node(waiting_list,running);
+                printf("%d,%d,%s,%s\n", cpu_clock, running->p->pid, STATES[STATE_RUNNING], STATES[STATE_WAITING]);
+
+                if(ready_list!=NULL){
+                    running = ready_list;
+                    running->p->s = STATE_RUNNING;
+                    remove_node(&ready_list, running);
+                    printf("%d,%d,%s,%s\n", cpu_clock, running->p->pid, STATES[STATE_READY], STATES[STATE_RUNNING]);
+                      
+                } else {
+                    running = NULL; 
+                    if(verbose) printf("%d: CPU is idle\n", cpu_clock);
+                } 
+            }            
+        }
+
+        // Set the simulation time advance
+        next_step = get_time_to_next_event(cpu_clock, running, new_list, waiting_list, no_io);
+        
+        if(verbose){
+            printf("-------------------------------------------------------------------------------------\n");
+            printf("At CPU time %dms...\n", cpu_clock);
+            printf("-------------------------------\n");
+            printf("The CPU is currently running:\n");
+            print_nodes(running);
+            printf("-------------------------------\n");
+            printf("The new process list is:\n");
+            print_nodes(new_list);
+            printf("-------------------------------\n");
+            printf("The ready queue is:\n");
+            print_nodes(ready_list);
+            printf("-------------------------------\n");
+            printf("The waiting list is:\n");
+            print_nodes(waiting_list);
+            printf("-------------------------------\n");
+            printf("The terminated list is:\n");
+            print_nodes(terminated);
+            printf("-------------------------------------------------------------------------------------\n");
+        }
+
+        // The simulation is completed when all the queues are empty, in otherwords, all programs have run to completion
+        simulation_completed = (ready_list == NULL) && (new_list == NULL) && (waiting_list == NULL) && (running == NULL);
+    } while(!simulation_completed);
+    if(verbose) printf("-------------------------------------------------------------------------------------\n");
+    if(verbose) printf("Simulation completed in %d ms.\n", cpu_clock);
+
+    // The simulation is done, all the nodes are in the terminated list, free them
+    clean_up(terminated);
 }
