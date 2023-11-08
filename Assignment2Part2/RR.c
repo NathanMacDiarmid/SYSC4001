@@ -19,7 +19,7 @@
 
 // Macro to return the min of a and b
 #define min(a, b) (((a) < (b)) ? (a) : (b))
-#define QUANTUM 4
+#define QUANTUM 1
 
 // An enumerator (enum for short) to represent the state
 enum STATE {
