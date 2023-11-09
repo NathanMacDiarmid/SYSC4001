@@ -33,6 +33,7 @@ typedef struct pcb{ //declaring the PCB struct as a linkedList
     char newState;
     int MemoryNeeded;
     int MemoryPosition; // store memory position
+    int MemoryAllocated;
     struct pcb *next;
 } PCB_t;
 
@@ -50,6 +51,21 @@ typedef struct { //Queue struct holds a pointer to the PCBs
 }queue_t;
 
 #define QUANTUM 1
+
+typedef struct {
+int partition1;
+int partition2;
+int partition3;
+int partition4;
+} MemoryPartitions;
+MemoryPartitions memory;
+
+void initializeMemory(void) {
+    memory.partition1 = MEMORY_PARTITION_1;
+    memory.partition2 = MEMORY_PARTITION_2;
+    memory.partition3 = MEMORY_PARTITION_3;
+    memory.partition4 = MEMORY_PARTITION_4;
+}
 
 /**
  * Creates a new Process Control Block (PCB) with the specified parameters.
@@ -371,57 +387,78 @@ void free_queue(queue_t *queue) {
     free(queue); // Free the queue itself
 }
 
+void logMemoryStatusCSV(FILE *outputFile, int totalMemory) {
+    int usedMemory = totalMemory - (memory.partition1 + memory.partition2 + memory.partition3 + memory.partition4);
+    int freeMemory = totalMemory - usedMemory;
 
-void logMemoryStatus(FILE *file, PCB_t *pcbArray, int maxRecords) {
-    int totalMemoryUsed = 0;
-    int remainingPartition1 = MEMORY_PARTITION_1;
-    int remainingPartition2 = MEMORY_PARTITION_2;
-    int remainingPartition3 = MEMORY_PARTITION_3;
-    int remainingPartition4 = MEMORY_PARTITION_4;
-    bool flag1 = false;
-    bool flag2 = false;
-    bool flag3 = false;
-    bool flag4 = false;
-
-        for (int i = 0; i < maxRecords; i++) 
-        {
-            if (pcbArray[i].MemoryPosition == -1) {
-                if (pcbArray[i].MemoryNeeded <= remainingPartition1 + remainingPartition2 + remainingPartition3 + remainingPartition4) {
-                    if (pcbArray[i].MemoryNeeded <= remainingPartition1 && !flag1 ) {
-                        pcbArray[i].MemoryPosition = 1;
-                        remainingPartition1 = remainingPartition1 - pcbArray[i].MemoryNeeded;
-                        flag1 = true;
-                        totalMemoryUsed+=pcbArray[i].MemoryNeeded;
-                    } else if (pcbArray[i].MemoryNeeded <= remainingPartition2 && !flag2 ) {
-                        pcbArray[i].MemoryPosition = 2;
-                        remainingPartition2 = remainingPartition2 - pcbArray[i].MemoryNeeded;
-                        flag2 = true;
-                        totalMemoryUsed+=pcbArray[i].MemoryNeeded;
-                    } else if (pcbArray[i].MemoryNeeded <= remainingPartition3 && !flag3 ) {
-                        pcbArray[i].MemoryPosition = 3;
-                        remainingPartition3 = remainingPartition3 - pcbArray[i].MemoryNeeded;
-                        flag3 = true;
-                        totalMemoryUsed+=pcbArray[i].MemoryNeeded;
-                    } else if (pcbArray[i].MemoryNeeded <= remainingPartition4 && !flag4 ) {
-                        pcbArray[i].MemoryPosition = 4;
-                        remainingPartition4 = remainingPartition4 - pcbArray[i].MemoryNeeded;
-                        flag4 = true;
-                        totalMemoryUsed+=pcbArray[i].MemoryNeeded;
-                    }
-                }
-        }
-    }
-
-    int totalFreeMemory = remainingPartition1 + remainingPartition2 + remainingPartition3 + remainingPartition4;
-
-    fprintf(file, "Total amount of memory used: %d MB\n", totalMemoryUsed);
-    fprintf(file, "Partitions used/free:\n");
-    fprintf(file, "Partition 1: Used: %d MB, Free: %d MB\n", MEMORY_PARTITION_1 - remainingPartition1, remainingPartition1);
-    fprintf(file, "Partition 2: Used: %d MB, Free: %d MB\n", MEMORY_PARTITION_2 - remainingPartition2, remainingPartition2);
-    fprintf(file, "Partition 3: Used: %d MB, Free: %d MB\n", MEMORY_PARTITION_3 - remainingPartition3, remainingPartition3);
-    fprintf(file, "Partition 4: Used: %d MB, Free: %d MB\n", MEMORY_PARTITION_4 - remainingPartition4, remainingPartition4);
-    fprintf(file, "Total amount of free memory available: %d MB\n", totalFreeMemory);
+    fprintf(outputFile, "Total Memory Used,%d\n", usedMemory);
+    fprintf(outputFile, "Partition 1,%d,%d\n", memory.partition1, MEMORY_PARTITION_1);
+    fprintf(outputFile, "Partition 2,%d,%d\n", memory.partition2, MEMORY_PARTITION_2);
+    fprintf(outputFile, "Partition 3,%d,%d\n", memory.partition3, MEMORY_PARTITION_3);
+    fprintf(outputFile, "Partition 4,%d,%d\n", memory.partition4, MEMORY_PARTITION_4);
+    fprintf(outputFile, "Total Free Memory,%d\n", freeMemory);
+    fprintf(outputFile, "Usable Memory,%d\n", totalMemory);
 }
+
+// Function to allocate memory for a process
+_Bool allocateMemory(PCB_t *pcb, queue_t *memoryWaitingQueue, FILE *outputFile) {
+    int requiredMemory = pcb->MemoryNeeded;
+    int totalMemory = MEMORY_PARTITION_1 + MEMORY_PARTITION_2 + MEMORY_PARTITION_3 + MEMORY_PARTITION_4;
+
+    if (requiredMemory <= memory.partition1 && memory.partition1 == MEMORY_PARTITION_1 && pcb->MemoryAllocated != 1) {
+        pcb->MemoryPosition = 1;
+        memory.partition1 -= requiredMemory;
+        pcb->MemoryAllocated = 1; // Mark memory as allocated
+        logMemoryStatusCSV(outputFile, totalMemory);
+        return true;
+    } else if (requiredMemory <= memory.partition2 && memory.partition2 == MEMORY_PARTITION_2 && pcb->MemoryAllocated != 2) {
+        pcb->MemoryPosition = 2;
+        memory.partition2 -= requiredMemory;
+        pcb->MemoryAllocated = 2; // Mark memory as allocated
+        logMemoryStatusCSV(outputFile, totalMemory);
+        return true;
+    } else if (requiredMemory <= memory.partition3 && memory.partition3 == MEMORY_PARTITION_3 && pcb->MemoryAllocated != 3) {
+        pcb->MemoryPosition = 3;
+        memory.partition3 -= requiredMemory;
+        pcb->MemoryAllocated = 3; // Mark memory as allocated
+        logMemoryStatusCSV(outputFile, totalMemory);
+        return true;
+    } else if (requiredMemory <= memory.partition4 && memory.partition4 == MEMORY_PARTITION_4 && pcb->MemoryAllocated != 4) {
+        pcb->MemoryPosition = 4;
+        memory.partition4 -= requiredMemory;
+        pcb->MemoryAllocated = 4; // Mark memory as allocated
+        logMemoryStatusCSV(outputFile, totalMemory);
+        return true;
+    } else {
+        // If memory is not available or already allocated, add to memory waiting queue
+        enqueue(memoryWaitingQueue, pcb);
+        return false;
+    }
+}
+
+
+
+// Function to release memory and check if waiting processes can access the partition
+void releaseMemory(PCB_t *pcb, MemoryPartitions *memory, queue_t *memoryWaitingQueue, queue_t *ready_queue) {
+    switch (pcb->MemoryPosition) {
+        case 1:
+            memory->partition1 += pcb->MemoryNeeded; // Release memory back to partition 1
+            break;
+        case 2:
+            memory->partition2 += pcb->MemoryNeeded; // Release memory back to partition 2
+            break;
+        case 3:
+            memory->partition3 += pcb->MemoryNeeded; // Release memory back to partition 3
+            break;
+        case 4:
+            memory->partition4 += pcb->MemoryNeeded; // Release memory back to partition 4
+            break;
+        default:
+            break;
+    }
+   
+}
+
 
 /**
  * Runs a simulation of process scheduling using the provided PCBs and logs the transitions.
@@ -435,12 +472,16 @@ void logMemoryStatus(FILE *file, PCB_t *pcbArray, int maxRecords) {
  * @param num_processes The number of processes in the 'pcbArray'.
  * @param outputFileName The name of the output log file where transition information is logged.
  */
-void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileName) {
-    // Create queues for different process states...
+void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileName,FILE *outputFile) {
+    const int MAX_PCB_COUNT = 100;
+    int waitTime[MAX_PCB_COUNT] = {0};
+    initializeMemory();
+    int completionTime[MAX_PCB_COUNT] = {0};
     queue_t* ready_queue = alloc_queue();
     queue_t* running_queue = alloc_queue();
     queue_t* waiting_queue = alloc_queue();
     queue_t* terminated_queue = alloc_queue();
+    queue_t* memoryWaitingQueue = alloc_queue();
 
     // Clear the log file or create it if it doesn't exist
     createOutPutFileWithHeader(outputFileName);
@@ -450,11 +491,32 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
     int num_terminated = 0;
     int time_quantum = QUANTUM; // Round Robin time quantum
 
+    int num_waiting = 0;
     while (num_terminated < num_processes) {
         // Add processes to the ready queue at their arrival time
         for (int j = 0; j < num_processes; j++) {
             if (pcbArray[j].ArrivalTime == Clock) {
-                enqueue(ready_queue, &pcbArray[j]);
+                if (allocateMemory(&pcbArray[j], memoryWaitingQueue, outputFile)) {
+                    enqueue(ready_queue, &pcbArray[j]);
+                } else {
+                    // Memory not available
+                    printf("Memory not available for PID: %d. Waiting...\n", pcbArray[j].Pid);
+                    enqueue(memoryWaitingQueue, &pcbArray[j]);
+                    num_waiting++;
+                }
+            }
+        }
+
+        // Update processes from the waiting queue to the ready queue if memory is available
+        for (int k = 0; k < num_waiting; k++) {
+            if (allocateMemory(memoryWaitingQueue->front, memoryWaitingQueue, outputFile)) {
+                enqueue(ready_queue, memoryWaitingQueue->front);
+                dequeue(memoryWaitingQueue, false);
+                num_waiting--;
+            } else {
+                // Memory still not available, move process to the end of the waiting queue
+                enqueue(memoryWaitingQueue, memoryWaitingQueue->front);
+                dequeue(memoryWaitingQueue, false);
             }
         }
 
@@ -465,8 +527,12 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
 
             if (pcb->remainingCPUtime == 0) {
                 logTransition(5, running_queue, terminated_queue, Clock, outputFileName);
+                completionTime[pcb->Pid] = Clock; //record completion time
                 dequeue(running_queue, true);
                 num_terminated++;
+                releaseMemory(pcb, &memory, memoryWaitingQueue ,ready_queue);
+
+                
             } else if (time_quantum == 0) {
                 // Time quantum expired, move to the end of the ready queue (RR behavior)
                 logTransition(4, running_queue, ready_queue, Clock, outputFileName);
@@ -482,6 +548,11 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
             PCB_t* pcb = front(ready_queue);
             dequeue(ready_queue, false);
             enqueue(running_queue, pcb);
+            // Calculate wait time for the process when it starts running
+              waitTime[pcb->Pid] = Clock - pcb->ArrivalTime - pcb->runningTime;
+            if (waitTime[pcb->Pid] < 0) {
+                waitTime[pcb->Pid] = 0; // Ensure wait time is not negative
+            }
             time_quantum = QUANTUM; // Reset the time quantum for new process
         }
 
@@ -520,12 +591,19 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
         // Increment the Clock
         Clock++;
     }
+    printf("\nTurnaround Time and Wait Time for Each Process:\n");
+        for (int i = 0; i < num_processes; i++) {
+            int turnaroundTime = completionTime[pcbArray[i].Pid] - pcbArray[i].ArrivalTime;
+            printf("Process %d - Turnaround Time: %d units, Wait Time: %d units\n", pcbArray[i].Pid, turnaroundTime, waitTime[pcbArray[i].Pid]);
+        }
+
 
     // Free allocated memory
     free_queue(ready_queue);
     free_queue(running_queue);
     free_queue(waiting_queue);
     free_queue(terminated_queue);
+    free_queue(memoryWaitingQueue);
 }
 
 int main(void) {
@@ -552,12 +630,9 @@ int main(void) {
         return 1;
     }
 
-    runSimulation(pcbArray, num_processes, outputFileName);
-
-    logMemoryStatus(outputFile, pcbArray, num_processes);
+    runSimulation(pcbArray, num_processes, outputFileName,outputFile );
     
     fclose(outputFile); // Close the output file
 
     return 0;
 }
-
