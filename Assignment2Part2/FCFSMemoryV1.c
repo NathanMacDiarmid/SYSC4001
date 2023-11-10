@@ -440,7 +440,7 @@ _Bool allocateMemory(PCB_t *pcb, queue_t *memoryWaitingQueue, FILE *outputFile) 
         return true;
     } else {
         // If memory is not available or already allocated, add to memory waiting queue
-        enqueue(memoryWaitingQueue, pcb);
+//        enqueue(memoryWaitingQueue, pcb);
         return false;
     }
 }
@@ -502,7 +502,6 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
     int Clock = 0;
     int num_terminated = 0;
     int notallocated = 0;
-
     int num_waiting = 0;
     while (num_terminated < num_processes - notallocated) {
         // Add processes to the ready queue at their arrival time
@@ -531,7 +530,6 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
                 enqueue(ready_queue, memoryWaitingQueue->front);
                 dequeue(memoryWaitingQueue, false);
                 num_waiting--;
-
             } else {
                 // Memory still not available, move process to the end of the waiting queue
                 enqueue(memoryWaitingQueue, memoryWaitingQueue->front);
