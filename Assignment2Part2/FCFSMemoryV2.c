@@ -1,23 +1,23 @@
-//
 //  main.c
 //  Assignment2 SYSC4001
 // Ali_Abdollahian #101229396
 // Nathan MacDiarmid 101098993
 //
 //  Created on 2023-10-07.
-//
+
 
 #include <stdbool.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
 #define TOTAL_MEMORY 1000 // 1 GB in MB
 
 // Define memory partitions
-#define MEMORY_PARTITION_1 500
-#define MEMORY_PARTITION_2 250
-#define MEMORY_PARTITION_3 150
-#define MEMORY_PARTITION_4 100
+#define MEMORY_PARTITION_1 300
+#define MEMORY_PARTITION_2 300
+#define MEMORY_PARTITION_3 350
+#define MEMORY_PARTITION_4 50
 
 typedef struct pcb{ //declaring the PCB struct as a linkedList
     int Pid;
@@ -50,7 +50,7 @@ typedef struct { //Queue struct holds a pointer to the PCBs
     int size;
 }queue_t;
 
-#define QUANTUM 1
+//#define QUANTUM 1
 
 typedef struct {
 int partition1;
@@ -404,6 +404,14 @@ void logMemoryStatusCSV(FILE *outputFile, int totalMemory) {
 _Bool allocateMemory(PCB_t *pcb, queue_t *memoryWaitingQueue, FILE *outputFile) {
     int requiredMemory = pcb->MemoryNeeded;
     int totalMemory = MEMORY_PARTITION_1 + MEMORY_PARTITION_2 + MEMORY_PARTITION_3 + MEMORY_PARTITION_4;
+    if (requiredMemory > MEMORY_PARTITION_1 && requiredMemory > MEMORY_PARTITION_2 &&
+        requiredMemory > MEMORY_PARTITION_3 && requiredMemory > MEMORY_PARTITION_4) {
+        // Process needs more memory than all partitions
+        printf("PID: %d not allocated - Insufficient partition memory.\n", pcb->Pid);
+        pcb->MemoryAllocated = 0;
+        memset(pcb, 0, sizeof(*pcb));
+        return false;
+    }
 
     if (requiredMemory <= memory.partition1 && memory.partition1 == MEMORY_PARTITION_1 && pcb->MemoryAllocated != 1) {
         pcb->MemoryPosition = 1;
@@ -472,16 +480,19 @@ void releaseMemory(PCB_t *pcb, MemoryPartitions *memory, queue_t *memoryWaitingQ
  * @param num_processes The number of processes in the 'pcbArray'.
  * @param outputFileName The name of the output log file where transition information is logged.
  */
-void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileName,FILE *outputFile) {
+void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileName, FILE *outputFile) {
     const int MAX_PCB_COUNT = 100;
-    int waitTime[MAX_PCB_COUNT] = {0};
-    initializeMemory();
     int completionTime[MAX_PCB_COUNT] = {0};
+    initializeMemory();
+    int waitTime[MAX_PCB_COUNT] = {0};
+    int turnaroundTime[MAX_PCB_COUNT] = {0};
+    queue_t* new_queue = alloc_queue();
     queue_t* ready_queue = alloc_queue();
     queue_t* running_queue = alloc_queue();
     queue_t* waiting_queue = alloc_queue();
     queue_t* terminated_queue = alloc_queue();
     queue_t* memoryWaitingQueue = alloc_queue();
+    queue_t* NotAllocated = alloc_queue();
 
     // Clear the log file or create it if it doesn't exist
     createOutPutFileWithHeader(outputFileName);
@@ -489,20 +500,26 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
     // Initialize simulation variables
     int Clock = 0;
     int num_terminated = 0;
-    int time_quantum = QUANTUM; // Round Robin time quantum
+    int notallocated = 0;
 
     int num_waiting = 0;
-    while (num_terminated < num_processes) {
+    while (num_terminated < num_processes - notallocated) {
         // Add processes to the ready queue at their arrival time
         for (int j = 0; j < num_processes; j++) {
             if (pcbArray[j].ArrivalTime == Clock) {
                 if (allocateMemory(&pcbArray[j], memoryWaitingQueue, outputFile)) {
                     enqueue(ready_queue, &pcbArray[j]);
                 } else {
-                    // Memory not available
-                    printf("Memory not available for PID: %d. Waiting...\n", pcbArray[j].Pid);
-                    enqueue(memoryWaitingQueue, &pcbArray[j]);
-                    num_waiting++;
+                    if (pcbArray[j].MemoryAllocated != 0) {
+                        enqueue(NotAllocated, &pcbArray[j]);
+                        notallocated++;
+                    }
+                    if (pcbArray[j].MemoryAllocated == 0) {
+                        // Memory not available
+                        printf("Memory not available for PID: %d. Waiting...\n", pcbArray[j].Pid);
+                        enqueue(memoryWaitingQueue, &pcbArray[j]);
+                        num_waiting++;
+                    }
                 }
             }
         }
@@ -512,91 +529,105 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
             if (allocateMemory(memoryWaitingQueue->front, memoryWaitingQueue, outputFile)) {
                 enqueue(ready_queue, memoryWaitingQueue->front);
                 dequeue(memoryWaitingQueue, false);
-                num_waiting--;
+
             } else {
                 // Memory still not available, move process to the end of the waiting queue
                 enqueue(memoryWaitingQueue, memoryWaitingQueue->front);
                 dequeue(memoryWaitingQueue, false);
+                num_waiting--;
             }
         }
 
-        // Transition from running to terminated or waiting or ready (if time quantum expires)
-        if (!isEmpty(running_queue)) {
-            PCB_t* pcb = front(running_queue);
-            pcb->remainingCPUtime--;
-
-            if (pcb->remainingCPUtime == 0) {
-                logTransition(5, running_queue, terminated_queue, Clock, outputFileName);
-                completionTime[pcb->Pid] = Clock; //record completion time
-                dequeue(running_queue, true);
-                num_terminated++;
-                releaseMemory(pcb, &memory, memoryWaitingQueue ,ready_queue);
-
-                
-            } else if (time_quantum == 0) {
-                // Time quantum expired, move to the end of the ready queue (RR behavior)
-                logTransition(4, running_queue, ready_queue, Clock, outputFileName);
-                dequeue(running_queue, false);
-                enqueue(ready_queue, pcb);
-                time_quantum = QUANTUM; // Reset the time quantum
-            }
+        // Transition processes from new to ready
+        if (!isEmpty(new_queue)) {
+            logTransition(0, new_queue, ready_queue, Clock, outputFileName);
+            PCB_t* pcb = front(new_queue);
+            dequeue(new_queue, false);
+            // Enqueue the PCB in the ready queue
+            enqueue(ready_queue, pcb);
         }
 
-        // If running queue is empty, fetch the next process in ready queue (FCFS behavior)
+        // Transition from ready to running if a process is ready and no process is running
+        if (!isEmpty(ready_queue) && isEmpty(running_queue)) {
+            logTransition(1, ready_queue, running_queue, Clock, outputFileName);
+            PCB_t* pcb = front(ready_queue);
+            dequeue(ready_queue, false);
+
+            // Enqueue the PCB in the running queue
+            enqueue(running_queue, pcb);
+        }
+
+        if (Clock > 0) {
+            // Transition from running to terminated
+            if (!isEmpty(running_queue)) {
+                PCB_t* pcb = front(running_queue);
+                pcb->remainingCPUtime--;
+                pcb->runningTime++;
+
+                if (pcb->remainingCPUtime == 0) {
+                    logTransition(5, running_queue, terminated_queue, Clock, outputFileName);
+                    dequeue(running_queue, true);
+                    num_terminated++;
+                    releaseMemory(pcb, &memory, memoryWaitingQueue, ready_queue);
+                    turnaroundTime[pcb->Pid] = Clock - pcb->ArrivalTime;
+                    waitTime[pcb->Pid] = turnaroundTime[pcb->Pid] - pcb->CPUTime;
+                }
+            }
+
+            if (!isEmpty(waiting_queue)) {
+                front(waiting_queue)->waitingTime++;
+                if (waiting_queue->size > 1) {
+                    waiting_queue->rear->waitingTime++;
+                }
+            }
+            // Transition from waiting to ready
+            if (!isEmpty(waiting_queue)) {
+                PCB_t* pcb = front(waiting_queue);
+
+                if (pcb->waitingTime == pcb->IODuration) {
+                    logTransition(3, waiting_queue, ready_queue, Clock, outputFileName);
+                    dequeue(waiting_queue, false);
+                    // Enqueue the PCB in the ready queue
+                    enqueue(ready_queue, pcb);
+
+                }
+            }
+
+
+            // Transition from running to waiting
+            if (!isEmpty(running_queue)) {
+                PCB_t* pcb = front(running_queue);
+
+                if (pcb->runningTime == pcb->IOFrequency) {
+                    logTransition(2, running_queue, waiting_queue, Clock, outputFileName);
+                    dequeue(running_queue, false);
+
+                    // Reset running time
+                    pcb->runningTime = 0;
+                    pcb->waitingTime = 0;
+
+                    // Enqueue the PCB in the waiting queue
+                    enqueue(waiting_queue, pcb);
+                }
+            }
+        }
         if (isEmpty(running_queue) && !isEmpty(ready_queue)) {
             logTransition(1, ready_queue, running_queue, Clock, outputFileName);
             PCB_t* pcb = front(ready_queue);
             dequeue(ready_queue, false);
             enqueue(running_queue, pcb);
-            // Calculate wait time for the process when it starts running
-              waitTime[pcb->Pid] = Clock - pcb->ArrivalTime - pcb->runningTime;
-            if (waitTime[pcb->Pid] < 0) {
-                waitTime[pcb->Pid] = 0; // Ensure wait time is not negative
-            }
-            time_quantum = QUANTUM; // Reset the time quantum for new process
-        }
-
-        // Transition from running to waiting
-        if (!isEmpty(running_queue)) {
-            PCB_t* pcb = front(running_queue);
-            pcb->runningTime++;
-
-            if (pcb->runningTime == pcb->IOFrequency) {
-                logTransition(2, running_queue, waiting_queue, Clock, outputFileName);
-                dequeue(running_queue, false);
-                pcb->runningTime = 0; // Reset running time
-                enqueue(waiting_queue, pcb);
-            }
-        }
-
-        // Transition from waiting to ready
-        if (!isEmpty(waiting_queue)) {
-            PCB_t* pcb = front(waiting_queue);
-            pcb->waitingTime++;
-
-            if (pcb->waitingTime == pcb->IODuration) {
-                logTransition(3, waiting_queue, ready_queue, Clock, outputFileName);
-                dequeue(waiting_queue, false);
-                enqueue(ready_queue, pcb);
-            }
-        }
-
-        // Decrement time quantum
-        if (time_quantum > 0) {
-            time_quantum--; // Decrement the time quantum
-        } else {
-            time_quantum = QUANTUM; // Reset the time quantum when it reaches 0
         }
 
         // Increment the Clock
         Clock++;
     }
-    printf("\nTurnaround Time and Wait Time for Each Process:\n");
-        for (int i = 0; i < num_processes; i++) {
-            int turnaroundTime = completionTime[pcbArray[i].Pid] - pcbArray[i].ArrivalTime;
-            printf("Process %d - Turnaround Time: %d units, Wait Time: %d units\n", pcbArray[i].Pid, turnaroundTime, waitTime[pcbArray[i].Pid]);
-        }
 
+    printf("\nTurnaround Time and Wait Time for Each Process:\n");
+    for (int i = 0; i < num_processes; i++) {
+        int turnaround = turnaroundTime[pcbArray[i].Pid];
+        int wait = waitTime[pcbArray[i].Pid];
+        printf("Process %d - Turnaround Time: %d units, Wait Time: %d units\n", pcbArray[i].Pid, turnaround, wait);
+    }
 
     // Free allocated memory
     free_queue(ready_queue);
@@ -604,7 +635,9 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
     free_queue(waiting_queue);
     free_queue(terminated_queue);
     free_queue(memoryWaitingQueue);
+    free_queue(NotAllocated);
 }
+
 
 int main(void) {
     #define MAX_PCB_COUNT 100
