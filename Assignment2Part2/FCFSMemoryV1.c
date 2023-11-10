@@ -99,6 +99,7 @@ PCB_t *createPCB(int Pid, int ArrivalTime, int CPUTime, int IOFrequency, int IOD
     pcb->IODuration = IODuration;
     pcb->MemoryPosition = -1;
     pcb->MemoryNeeded=MemoryNeeded;
+    pcb->MemoryAllocated=9;
 
     pcb->next = NULL;
     
@@ -510,11 +511,11 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
                 if (allocateMemory(&pcbArray[j], memoryWaitingQueue, outputFile)) {
                     enqueue(ready_queue, &pcbArray[j]);
                 } else {
-                    if (pcbArray[j].MemoryAllocated != 0) {
+                    if (pcbArray[j].MemoryAllocated == 0) {
                         enqueue(NotAllocated, &pcbArray[j]);
                         notallocated++;
                     }
-                    if (pcbArray[j].MemoryAllocated == 0) {
+                    if (pcbArray[j].MemoryAllocated != 0) {
                         // Memory not available
                         printf("Memory not available for PID: %d. Waiting...\n", pcbArray[j].Pid);
                         enqueue(memoryWaitingQueue, &pcbArray[j]);
@@ -529,12 +530,13 @@ void runSimulation(PCB_t pcbArray[], int num_processes, const char* outputFileNa
             if (allocateMemory(memoryWaitingQueue->front, memoryWaitingQueue, outputFile)) {
                 enqueue(ready_queue, memoryWaitingQueue->front);
                 dequeue(memoryWaitingQueue, false);
+                num_waiting--;
 
             } else {
                 // Memory still not available, move process to the end of the waiting queue
                 enqueue(memoryWaitingQueue, memoryWaitingQueue->front);
                 dequeue(memoryWaitingQueue, false);
-                num_waiting--;
+                
             }
         }
 
