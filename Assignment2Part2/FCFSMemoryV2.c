@@ -440,7 +440,7 @@ _Bool allocateMemory(PCB_t *pcb, queue_t *memoryWaitingQueue, FILE *outputFile) 
         return true;
     } else {
         // If memory is not available or already allocated, add to memory waiting queue
-        enqueue(memoryWaitingQueue, pcb);
+        //enqueue(memoryWaitingQueue, pcb);
         return false;
     }
 }
