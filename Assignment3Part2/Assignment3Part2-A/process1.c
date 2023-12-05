@@ -55,7 +55,7 @@ int main(void) {
 
     if (child_pid == 0) {
         // This is the child process (Process 2)
-        execlp("/Users/ali/Documents/SYSC4001/process2/process2/process2", "process2", NULL);
+        execlp("process2", "process2", NULL);
         perror("exec");
         exit(1);
     } else {
