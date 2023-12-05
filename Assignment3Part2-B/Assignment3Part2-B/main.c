@@ -21,25 +21,78 @@ pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 // initializes the condition to be used as the wait checker
 pthread_cond_t condition = PTHREAD_COND_INITIALIZER;
 
-void readFile() {
-    Account account1, account2, account3;
+/**
+ * @brief Read account information from a CSV file and populate the 'accounts' array.
+ *
+ * This function opens a CSV file containing account information in the format:
+ * "accountNo,accountPin,funds", and reads each line to populate the 'accounts' array.
+ * The function uses the strtok function to tokenize each line based on commas as separators.
+ *
+ * @note The CSV file should have one line per account, and each line should contain
+ * the account number, account pin, and funds separated by commas.
+ *
+ * @note The 'accounts' array must be pre-declared and have sufficient space for the
+ * account information from the file.
+ */
+void readFile(void) {
+    // Open the file for reading
+    FILE *file = fopen("DataBase.txt", "r");
+    if (file == NULL) {
+        // Print an error message and exit if the file couldn't be opened
+        perror("Error opening file");
+        exit(1);
+    }
 
-    account1.accountNo = 10001;
-    account1.accountPin = 107;
-    account1.funds = 3443.22;
+    // Define an array to store each line read from the file
+    char line[100];
+    // Initialize the counter for the accounts array
+    int i = 0;
 
-    account2.accountNo = 10011;
-    account2.accountPin = 323;
-    account2.funds = 10089.97;
+    // Read each line from the file using fgets
+    // Stop reading if the end of the file is reached or the accounts array is filled
+    while (fgets(line, sizeof(line), file) != NULL && i < sizeof(accounts) / sizeof(accounts[0])) {
+        // Tokenize the line using commas as separators
+        char *token = strtok(line, ",");
+        if (token == NULL) {
+            // Print an error message and exit if the first token is missing
+            fprintf(stderr, "Error reading account information from file\n");
+            exit(1);
+        }
 
-    account3.accountNo = 10117;
-    account3.accountPin = 259;
-    account3.funds = 112.00;
+        // Convert the token to an integer and store it in the accountNo field of the current account
+        accounts[i].accountNo = atoi(token);
 
-    accounts[0] = account1;
-    accounts[1] = account2;
-    accounts[2] = account3;
+        // Move to the next token
+        token = strtok(NULL, ",");
+        if (token == NULL) {
+            // Print an error message and exit if the second token is missing
+            fprintf(stderr, "Error reading account information from file\n");
+            exit(1);
+        }
+
+        // Convert the token to an integer and store it in the accountPin field of the current account
+        accounts[i].accountPin = atoi(token);
+
+        // Move to the next token
+        token = strtok(NULL, ",");
+        if (token == NULL) {
+            // Print an error message and exit if the third token is missing
+            fprintf(stderr, "Error reading account information from file\n");
+            exit(1);
+        }
+
+        // Convert the token to a double and store it in the funds field of the current account
+        accounts[i].funds = atof(token);
+
+        // Increment the counter for the accounts array
+        i++;
+    }
+
+    // Close the file
+    fclose(file);
 }
+
+
 
 // clears any residuals remaining when performing scanf
 void clear_input_buffer() {
@@ -82,6 +135,7 @@ void *ATM(void *arg) {
             printf("Choose one of the following:\n");
             printf("- BALANCE: 1\n");
             printf("- WITHDRAW: 2\n");
+            printf("- QUIT: -1\n");
             printf("Your choice: ");
             scanf("%d", &sharedAccountCmd);
             clear_input_buffer();
